@@ -1,0 +1,312 @@
+---
+title: "6020Midterm"
+author: "Johan Boer"
+date: "4/1/2022"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = FALSE)
+options(tinytex.verbose = TRUE)
+library(tidyverse)
+library(knitr)
+library(patchwork)
+```
+
+
+-1- (30 points) The following table is also from Methods of Multivariate Analysis by Rencher. This is
+data from an experiment that measures response times to certain “probe words” at five positions
+in a sentence. The variables $y_j$ are response times for the $j$th probe word, where $j = 1, . . . , 5$.
+Analyze this dataset thoroughly in any way that you feel fit, present and interpret all results and
+justify everything you do.
+
+```{r p1_table, include= FALSE}
+
+p1data <-  data.frame(t(data.frame(
+  Subject_1=c(1,51,36,50,35,42),
+  Subject_2=c(2,27,20,26,17,27),
+  Subject_3=c(3,37,22,41,37,30),
+  Subject_4=c(4,42,36,32,34,27),
+  Subject_5=c(5,27,18,33,14,29),
+  Subject_6=c(6,43,32,43,35,40),
+  Subject_7=c(7,41,22,36,25,38),
+  Subject_8=c(8,38,21,31,20,16),
+  Subject_9=c(9,36,23,27,25,28),
+  Subject_10=c(10,26,31,31,32,36),
+  Subject_11=c(11,29,20,25,26,25)
+)))
+
+colnames(p1data) = c("Subject_Number","y1","y2","y3","y4","y5")
+rownames(p1data) = c(1,2,3,4,5,6,7,8,9,10,11)
+```
+```{r p1_chart, echo=FALSE}
+kable(p1data, caption="Table 3.5 Response Times for Probe Word Positions")
+```
+
+For this dataset I would want to find out if each probe word is substantively different and if so, which probe word location results in the fastest and slowest responses. So the first thing to look into is if the data associated with each probe word is significantly different than the others. One way to get some quick insights into the data would be to look at a plot of the distribution of each probe word location.
+
+
+```{r}
+p1time <- read.csv("Data/p1time.csv")
+```
+```{r}
+ggplot(p1time,aes(x=word_position,y=times))+
+  geom_violin()+
+  geom_point()+
+  ylab('Response Times')+
+  xlab("Probe Word Position")
+```
+
+From this plot I see that position $y_1$ and $y_3$ seem to have a similar distribution. The other 3 positions have some overlap but they seem to be distinct. Another thing that would be good to check is the normality of the overall data set-that is can we model the times irrespective of word position as a normal distribution. A QQ plot can give some insight into the normality of a distribution. We can also look at the QQ plots of each variable individual
+
+```{r}
+layout(matrix(c(1,1,2,1,1,6,4,5,3),3,3))
+qqnorm(p1time$times, ylab ="Combined Data")
+qqnorm(p1data$y1,ylab="y1")
+qqnorm(p1data$y2,ylab="y2")
+qqnorm(p1data$y3,ylab="y3")
+qqnorm(p1data$y4,ylab="y4")
+qqnorm(p1data$y5,ylab="y5")
+```
+
+These QQ plots indicate that the data is close to normally distributed, and therefore a paired T-Test would be an appropriate way to check if these models have different means. Since there is so little data (only 11 points in each variable), I think it is wise to check to see if the largest pairwise difference in means is significant to start with. 
+
+```{r}
+p1data %>% summarise(
+mu1=mean(y1),
+mu2=mean(y2),
+mu3=mean(y3),
+mu4=mean(y4),
+mu5=mean(y5))
+```
+The biggest difference in means is between $y_1$ and $y_2$ so to start we use a T-Test
+
+```{r}
+t.test(p1data$y1,p1data$y2,paired = T)
+```
+Since this test showed a difference with high significance we can move on to other tests. For example we can test if $y_1$ and $y_3$ are significantly different.
+
+```{r}
+t.test(p1data$y1,p1data$y3,paired = T)
+```
+
+As expected from the plots we get that $y_1$ and $y_3$ are not significantly different. The next thing to test is if all of the variables are distinct from the overall distribution of the times. I will test all 5 variables in a T-Test with a .01 confidence level rather than a .05 confidence level (to account for multiple testing) against the combined dataset of the other 4 variables. 
+
+```{r}
+otherTimes = filter(p1time,word_position != "y1")
+t.test(p1data$y1,otherTimes$times,conf.level = .99)
+
+otherTimes = filter(p1time,word_position != "y2")
+t.test(p1data$y2,otherTimes$times,conf.level = .99)
+
+otherTimes = filter(p1time,word_position != "y3")
+t.test(p1data$y3,otherTimes$times,conf.level = .99)
+
+otherTimes = filter(p1time,word_position != "y4")
+t.test(p1data$y4,otherTimes$times,conf.level = .99)
+
+otherTimes = filter(p1time,word_position != "y5")
+t.test(p1data$y5,otherTimes$times,conf.level = .99)
+```
+
+For this test none of the word positions were significantly different than the rest of the data. We know from other tests that there is a difference between the extremes, but this shows that between arbitrary probe word positions there is not a huge difference in response times. This dataset is too small to get any truly meaningful insights but it does suggest that there may be some benefit to placing a probe word in positions $y_1$ or $y_3$ rather than $y_2$ with respect to response time. 
+
+
+
+
+
+
+\newpage
+
+
+-2- (30 points) In R use the commands install.packages("HSAUR3") followed by data("USairpollution",
+package="HSAUR3") to download air pollution information for 41 cities in the United States. You
+can find documentation on this data set at
+https:
+//www.rdocumentation.org/packages/HSAUR3/versions/1.0-8/topics/USairpollution
+Plot normal qq-plots [qqnorm in R] on each of the variables S02, temp, manu, popul, wind,
+precip and predays and present them in a grid. What do you find?
+Use S02 and temp either together or individually as response variables and the rest as predictor
+variables and perform multivariate linear regression. Analyze the dataset completely including
+any diagnostics that you feel appropriate.
+
+
+```{r echo=F}
+data("USairpollution",package="HSAUR3")
+p2data <- USairpollution
+
+
+kable(head(p2data),caption="First Rows of US Air Pollution data")
+```
+
+
+Looking at the QQ plots:
+
+```{r}
+layout(matrix(c(1,2,3,4,5,6,7,8),2,4))
+qqnorm(p2data$SO2,ylab="SO2")
+qqnorm(p2data$temp,ylab='temp')
+qqnorm(p2data$manu,ylab='manu')
+qqnorm(p2data$popul,ylab="popul")
+qqnorm(p2data$wind,ylab="wind")
+qqnorm(p2data$precip,ylab='precip')
+qqnorm(p2data$predays,ylab='predays')
+```
+
+These plots show that most of these variables are close to normally distributed. Temperature, wind speed, amount of precipitation, and days with precipitation are all reasonably close to normally distributed considering this is a real dataset with a relatively low number of observations. Population and number of manufacturing enterprises seem to be mostly normal except for a couple serious outliers and SO2 does not seem to be fit very well by a normal distribution.  
+
+Next we should check for highly correlated data. The correlation matrix shows:
+```{r}
+kable(cor(p2data),caption="Correlation Matrix")
+```
+
+Population and number of manufacturing enterprises are highly correlated $(\text{corr(popul,manu)}\approx.955)$. This suggests that we should only use one of these two for our regression. No other pair of variables has an absolute correlation above $0.5$, so we can not immediately rule out any other variables for colinearity.
+
+I will do two separate linear regressions using SO2 and temperature as response variables with the other variables as predictor variables. For the regression with SO2 as the response variable I will include number of manufacturing enterprises, wind speed, amount of precipitation and, number of days with precipitation as predictor variables. Population is not used in this regression because it has a high correlation with manufacturing and has a worse correlation with SO2 concentration. For the regression for Temperature, the same predictor variables are used execpt that population is used over manufacturing because neither has a very good correlation with temperature and population has less colinearity with the other predictor variables.
+
+```{r}
+so2reg <- lm(p2data$SO2~p2data$manu+p2data$wind+p2data$precip+p2data$predays)
+
+tempreg <- lm(p2data$temp~p2data$popul+p2data$wind+p2data$precip+p2data$predays)
+
+```
+
+Looking closely at the SO2 regression
+
+```{r}
+summary(so2reg)
+```
+Firstly the F-statistic has a very low p-value so this regression models the data well. The only predictor variable that has a significant t value is manufacturing, which suggests that the most significant predictor for SO2 concentration is the amount of manufacturing in a city.  
+
+Looking at some diagnostic plots:
+
+```{r}
+layout(matrix(c(1,2,3,4),2,2))
+plot(so2reg)
+```
+
+We see that this regression has a linear relationship with normally distributed errors from the residuals vs fitted values and QQ plots. While there are a couple outliers none of them are high leverage, so their inclusion does not greatly skew the model. The scale location plot indicates that there may be some heteroskedasticity but only slightly.
+
+Looking at the Temperature regression:
+
+```{r}
+summary(tempreg)
+```
+This regression has a much smaller p-value for the F-statistic and aside from population all of the predictor variables have small p-values associated with their t-statistic. This model has a significantly better R-Squared value than the previous regression so it has more explanatory power.
+
+Looking at the same diagnostics:
+
+```{r}
+layout(matrix(c(1,2,3,4),2,2))
+plot(tempreg)
+```
+
+We still have a reasonable QQ plot and the residuals vs fitted plot still shows a linear relationship. This model has a much flatter scale location plot which indicates that this model does not have much heteroskedasticity, but there is also a high leverage outlier in this model.
+
+These models seem to suggest that unlike for SO2 concentrations, which can be predicted reasonably without much consideration given to natural conditions such as wind speed or precipitation, average temperature is much more affected by the natural conditions of the area. Therefore, if you want to predict the temperature it is important not to neglect the conditions of the area in your model to get good predictions.
+
+
+
+
+
+\newpage
+
+-4- (30 points) Lab mice were trained for 1, 2, or 3 days to jump down from a pedestal and catch a
+piece of cheese. The data from the experiment is in mice.csv. Analyze the dataset thoroughly
+including any diagnostics that you feel appropriate.
+
+
+```{r}
+p4data <- read.csv("Data/mice.csv")
+kable(head(p4data),caption="First Rows of Mice data")
+p4data$TrainingDaysNumeric <- p4data$TrainingDays
+p4data$TrainingDays <- factor(p4data$TrainingDays)
+p4data$Jumped <- factor(p4data$Jumped)
+
+
+```
+
+
+
+For this dataset the question is how does training mice affect the likelihood that a mouse jumps in the experiment. So a natural starting point would be to check if training the mice has any noticeable change in the proportion of mice that jump.
+
+```{r}
+p4tab = p4data %>% group_by(TrainingDays) %>% summarise(Count = n(),
+                                                        NumberJumped = sum(Jumped==1),
+                                                        JumpProp = sum(Jumped == 1)/n())
+p4tab$TrainingDays = c("1","2","3")
+p4tab = rbind(c("Total",150,108,108/150),p4tab)
+kable(p4tab,caption="Mice Jumping by Days Trained")
+```
+
+So as an initial check the number of days trained does seem to impact a mouse's probability of jumping. To be more sure that this is a significant effect I am going to run a simple logistic regression.
+
+```{r}
+dayslogistic <- glm(Jumped~TrainingDaysNumeric,data=p4data,family="binomial")
+summary(dayslogistic)
+
+```
+Based on the z-value of this regression there is a significant difference as a result of training days. So, training a mouse for extra days does have a significant affect. This model has a relativity small coefficient and the residuals are not very close to zero. Since this model is not particularly good, the next natural thing to check is if it is the best predictor. One way to get some intuition for this would be to look at the conditional density plots for each predictor variable in the data.
+
+```{r}
+layout(matrix(c(1,2,3),1,3))
+
+jumper = factor(p4data$Jumped,levels=0:1,labels=c("Jumped","Did not Jump"))
+cdplot(p4data$TrainingDays,jumper,ylab="Result of Experiment",xlab="Days Trained")
+cdplot(p4data$Weight_Ounce,jumper,ylab="Result of Experiment",xlab="Weight in Ounces")
+cdplot(p4data$Length_Inch,jumper,ylab="Result of Experiment",xlab="Length in Inches")
+```
+
+This set of plots seems to indicate that both the weight and length of a mouse may be better predictors of the mouse's probability to jump than the number of days trained. The pair of plots showing weight and length also suggest that the heavier and shorter a mouse is the less likely it is to see that mouse jump. It is worthwhile to see how the length and weight of mice are distributed, and see the effects of a logistic regression with all the variables included.
+
+```{r}
+ggplot(p4data,aes(x=Length_Inch,y=Weight_Ounce,color=Jumped))+
+  geom_jitter()+
+  facet_wrap(~TrainingDays)+
+  scale_colour_manual(values=c("Black","azure4"))
+
+fulllogistic =  glm(Jumped~TrainingDaysNumeric+Weight_Ounce+Length_Inch,data=p4data,family="binomial")
+summary(fulllogistic)
+```
+
+
+Comparing this regression to the simple training days only regression we see that this model has deviance residuals that are almost zero and the AIC score is much better. We can also see that while having more days of training is still a significant predictor it has both the largest p-value and the smallest coefficient. This model shows that the best predictor of a mouse jumping in the experiment is the weight of a mouse. The residual deviance plots of a logistic model only considering the number of days trained and a logistic model with only the length and weight confirm that just using the number of training days is not a good way of modeling whether or not a mouse will jump.
+
+```{r echo=FALSE}
+nodayslogistic = glm(Jumped~Weight_Ounce+Length_Inch,data=p4data,family="binomial")
+
+res1 = residuals(dayslogistic,type="deviance")
+res2 = residuals(nodayslogistic,type="deviance")
+
+logisticplots = data.frame(resid1 = res1,fitted1 = predict(dayslogistic),resid2=res2, fitted2=predict(nodayslogistic))
+
+
+a=ggplot(logisticplots,aes(y=resid1,x=fitted1))+
+  geom_jitter(width=.02,height =0,alpha=.5)+
+  ylab("Residuals")+
+  xlab("Fitted Values")
+
+b=ggplot(logisticplots,aes(x=c(1:150),y=resid1))+
+  geom_point()+
+  ylab("Residuals")+
+  xlab("Index")
+
+c=ggplot(logisticplots,aes(y=resid2,x=fitted2))+
+  geom_jitter(width=0,height =0,alpha=.5)+
+  ylab("Residuals")+
+  xlab("Fitted Values")
+
+d=ggplot(logisticplots,aes(x=c(1:150),y=resid2))+
+  geom_point()+
+  ylab("Residuals")+
+  xlab("Index")
+
+
+a+b+c+d+ plot_layout(ncol = 2)
+```
+
+
+These results seem to indicate that while training a mouse can increase the chances it will jump in an experiment the amount of training is less significant than the length and weight of a mouse. If we need mice to jump in an experiment it is a better idea to get long and light mice rather than spend more time training. If for some reason this is not possible, then in order to get more mice to jump-especially smaller and heavier mice-more training is required. For mice that are less inclined to jump, three days of training is insufficient to see much progress. 
+
+

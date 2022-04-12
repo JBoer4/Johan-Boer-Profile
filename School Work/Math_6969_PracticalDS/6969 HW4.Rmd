@@ -1,0 +1,163 @@
+---
+title: " Homework 4 "
+date: "`r Sys.Date()`"
+author: " Johan Boer "
+output:
+  rmdformats::readthedown:
+    highlight: kate
+---
+
+```{r setup, include=FALSE}
+## Global options
+library(rmdformats)
+library(knitr)
+library(dplyr)
+library(tidyverse)
+library(reactable)
+library(patchwork)
+
+
+knitr::opts_chunk$set(cache = TRUE,
+                      echo = FALSE,
+                      message=FALSE,
+                      warning=FALSE)
+```
+
+
+
+```{r data}
+games = read.csv("Data//Board Games//games.csv")
+ratings = read.csv("Data//Board Games//user_ratings.csv")
+```
+
+
+I found a data set about board games and I want to get some insight into the history of board games. The data set has `r nrow(games)` games from as early as the year `r games %>% arrange(YearPublished) %>% .[1,] %>% pull(YearPublished) ` and up until last year. This data set also has user reviews and separates games into categories, so it is an ideal data set to look at trends in the history of games. Here is a table that shows off a part of the data.
+
+```{r}
+games %>% 
+  select(c(2,4,6,9,10,15)) %>% 
+  reactable(filterable=TRUE,searchable=TRUE)
+```
+
+This table shows a massive range of data. It is worthwhile to look at the distribution of when games came out. The year published is not really an accurate depiction nor an accurate date for some of the oldest games, but it is a good estimate and for more modern games the publishing date is a very accurate way of determining when a game came out. Considering that there is a significant difference between how data is collected between modern and ancient games, it may also be a good idea to separate the data into newer games and extremely old games. There may not be particularly good comparison between the extremely old and new games. Here is a plot of how many games came out each year, for all time and for the last 100 years.
+
+```{r}
+p1 = games %>% 
+  group_by(YearPublished) %>% 
+  summarise(Count=n()) %>% 
+  ggplot(aes(x=YearPublished,y=Count))+
+    geom_line()
+
+ p2 = games %>% 
+  filter(YearPublished >= 1922) %>% 
+  group_by(YearPublished) %>% 
+  summarise(Count=n()) %>% 
+  ggplot(aes(x=YearPublished,y=Count))+
+    geom_line()
+
+ p1+p2
+```
+
+These plots show that the number of individual board games has exploded in recent years and as a result this data set is best used to explore the more recent history of board games. The data set has a clump of games that  are attributed to the year zero then a space of 400 years before the next game was released, using this data how can we say anything about gaming in the year 250. We can still get a lot of insight from the data if we restrict the time fame to the last 100 years.
+
+
+The first question I have about games is are games getting better over time according to the player reviews. With the number of new games exploding has it become a challenge to find good games - has the experience of playing a random game changed significantly over the last 100 years. 
+
+```{r}
+ModernGames = games %>% 
+  filter(YearPublished >= 1922)
+
+
+ggplot(ModernGames, aes(x=YearPublished,y=BayesAvgRating))+
+  geom_jitter(alpha=.25)+
+  geom_smooth(se=FALSE)
+
+
+```
+
+Whenever user ratings are used I think it is an important point to look at how many people are rating games, and see how many games each individual is rating. There are an astounding `r nrow(ratings)` ratings.
+```{r}
+ratings %>% 
+  group_by(Username) %>% 
+  summarise(Count=n(),
+            meanRating=mean(Rating),
+            reviewPercent=Count/nrow(ratings)*100) %>% 
+  reactable(filterable=TRUE,searchable=TRUE)
+```
+
+Another interesting thing to see is how the number of games has grown for each category. There are a total of 8 general categories given to each game, they include children's games, strategy games, party games, and 5 more. Every game can have multiple categories. I think it may be an interesting thing to look at the number of games coming out each year from each category. 
+```{r}
+p3 = ModernGames %>% 
+  filter(Cat.Thematic == 1) %>% 
+  group_by(YearPublished) %>% 
+  summarise(Count=n()) %>% 
+  ggplot(aes(x=YearPublished,Count))+
+    geom_line(color="gold2")+
+    labs(title="Thematic Games")
+
+p4 = ModernGames %>% 
+  filter(Cat.Strategy == 1) %>% 
+  group_by(YearPublished) %>% 
+  summarise(Count=n()) %>% 
+  ggplot(aes(x=YearPublished,Count))+
+    geom_line(color="blue3")+
+    labs(title="Strategy Games")
+
+p5 = ModernGames %>% 
+  filter(Cat.War == 1) %>% 
+  group_by(YearPublished) %>% 
+  summarise(Count=n()) %>% 
+  ggplot(aes(x=YearPublished,Count))+
+    geom_line(color="red4")+
+    labs(title="War Games")
+
+p6 = ModernGames %>% 
+  filter(Cat.Family == 1) %>% 
+  group_by(YearPublished) %>% 
+  summarise(Count=n()) %>% 
+  ggplot(aes(x=YearPublished,Count))+
+    geom_line(color="purple")+
+    labs(title="Family Games")
+
+p7 = ModernGames %>% 
+  filter(Cat.CGS == 1) %>% 
+  group_by(YearPublished) %>% 
+  summarise(Count=n()) %>% 
+  ggplot(aes(x=YearPublished,Count))+
+    geom_line(color="black")+
+    labs(title="Card Games")
+
+p8 = ModernGames %>% 
+  filter(Cat.Abstract == 1) %>% 
+  group_by(YearPublished) %>% 
+  summarise(Count=n()) %>% 
+  ggplot(aes(x=YearPublished,Count))+
+    geom_line(color="forestgreen")+
+    labs(title="Abstract Games")
+
+p9 = ModernGames %>% 
+  filter(Cat.Party == 1) %>% 
+  group_by(YearPublished) %>% 
+  summarise(Count=n()) %>% 
+  ggplot(aes(x=YearPublished,Count))+
+    geom_line(color="magenta")+
+    labs(title="Party Games")
+
+p10 = ModernGames %>% 
+  filter(Cat.Childrens == 1) %>% 
+  group_by(YearPublished) %>% 
+  summarise(Count=n()) %>% 
+  ggplot(aes(x=YearPublished,Count))+
+    geom_line(color="darkorange1")+
+    labs(title="Childrens Games")
+
+
+p3+p4+p5+p6+p7+p8+p9+p10+
+  plot_layout(ncol=3)
+
+
+
+```
+
+Every category follows the same overall trend as all the full data set, more games come out for each category as we get closer to modern day, but outside of the overall trend we can get some insight into the progression of gaming categories. One thing to notice is the huge spike in war games in the 1980s, this seems to be the first massive surge of new games coming out. Another neat piece of information is clearly shown in this visualization, there were not card games sold until late in the 1900s. For most game categories there is a huge spike in the early 2000s especially in childrens, family, and party games. It would seem that war games started a board game revolution in the 1970s and 80s that expanded into a much wider market in the 90s and 2000s. 
+
